@@ -98,68 +98,99 @@ jobs:
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    env:
+      APP_ENV_PRODUCTION: ${{ secrets.APP_ENV_PRODUCTION }}
+      DEPLOY_IMAGE: ${{ needs.build-and-push.outputs.image }}
+      REPO_NAME: ${{ github.event.repository.name }}
+      GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_PORT: ${{ secrets.VPS_PORT }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.2.2
-        env:
-          APP_ENV_PRODUCTION: ${{ secrets.APP_ENV_PRODUCTION }}
-          DEPLOY_IMAGE: ${{ needs.build-and-push.outputs.image }}
-          REPO_NAME: ${{ github.event.repository.name }}
-          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
-          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_PORT }}
-          timeout: 180s
-          command_timeout: 20m
-          envs: APP_ENV_PRODUCTION,DEPLOY_IMAGE,REPO_NAME,GHCR_USERNAME,GHCR_TOKEN
-          script: |
-            set -euo pipefail
-            APP_ROOT="/opt/automation-sites"
-            APP_DIR="$APP_ROOT/$REPO_NAME"
+      - name: Prepare SSH key
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/slot4_vps_key
+          chmod 600 ~/.ssh/slot4_vps_key
+          ssh-keyscan -T 20 -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
 
-            mkdir -p ~/.ssh
-            ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null || true
-            chmod 700 ~/.ssh
-            chmod 600 ~/.ssh/known_hosts 2>/dev/null || true
+      - name: Deploy via SSH with retry
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP_ENV_B64="$(printf '%s' "$APP_ENV_PRODUCTION" | base64 -w0)"
+          GHCR_TOKEN_B64="$(printf '%s' "$GHCR_TOKEN" | base64 -w0)"
 
-            mkdir -p "$APP_ROOT"
-            if [ ! -d "$APP_DIR/.git" ]; then
-              git clone "https://x-access-token:${GHCR_TOKEN}@github.com/mr-devloper005/$REPO_NAME.git" "$APP_DIR"
-            fi
+          cat > /tmp/slot4-deploy.sh <<'REMOTE_SCRIPT'
+          set -euo pipefail
+          APP_ROOT="/opt/automation-sites"
+          APP_DIR="$APP_ROOT/$REPO_NAME"
+          GHCR_TOKEN="$(printf '%s' "$GHCR_TOKEN_B64" | base64 -d)"
 
-            cd "$APP_DIR"
+          mkdir -p ~/.ssh
+          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null || true
+          chmod 700 ~/.ssh
+          chmod 600 ~/.ssh/known_hosts 2>/dev/null || true
 
-            printf '%s\n' "$APP_ENV_PRODUCTION" > .env
-            printf '\nDEPLOY_IMAGE=%s\n' "$DEPLOY_IMAGE" >> .env
-            chmod 600 .env
+          mkdir -p "$APP_ROOT"
+          if [ ! -d "$APP_DIR/.git" ]; then
+            git clone "https://x-access-token:${GHCR_TOKEN}@github.com/mr-devloper005/$REPO_NAME.git" "$APP_DIR"
+          fi
 
-            git remote set-url origin "https://x-access-token:${GHCR_TOKEN}@github.com/mr-devloper005/$REPO_NAME.git" 2>/dev/null || true
-            git fetch origin main
-            git checkout main
-            git reset --hard origin/main
+          cd "$APP_DIR"
+          printf '%s' "$APP_ENV_B64" | base64 -d > .env
+          printf '\nDEPLOY_IMAGE=%s\n' "$DEPLOY_IMAGE" >> .env
+          chmod 600 .env
 
-            if [ -z "${GHCR_USERNAME:-}" ] || [ -z "${GHCR_TOKEN:-}" ]; then
-              echo "Deploy preflight failed: GHCR_USERNAME and GHCR_TOKEN secrets are required for VPS image pull."
-              exit 1
-            fi
-            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
+          git remote set-url origin "https://x-access-token:${GHCR_TOKEN}@github.com/mr-devloper005/$REPO_NAME.git" 2>/dev/null || true
+          git fetch origin main
+          git checkout main
+          git reset --hard origin/main
 
-            docker compose -f docker-compose.vps.yml pull
-            docker compose -f docker-compose.vps.yml up -d --remove-orphans
-            docker compose -f docker-compose.vps.yml ps
-
-            APP_PORT_VALUE="$(grep -E "^APP_PORT=" .env | tail -1 | cut -d= -f2- || true)"
-            APP_PORT_VALUE="${APP_PORT_VALUE:-3020}"
-            for i in 1 2 3 4 5; do
-              if wget -qO- "http://127.0.0.1:${APP_PORT_VALUE}/api/health"; then
-                echo "Deploy health check passed."
-                exit 0
-              fi
-              sleep 3
-            done
-            echo "Deploy health check failed after restart."
+          if [ -z "${GHCR_USERNAME:-}" ] || [ -z "${GHCR_TOKEN:-}" ]; then
+            echo "Deploy preflight failed: GHCR_USERNAME and GHCR_TOKEN secrets are required for VPS image pull."
             exit 1
+          fi
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
+
+          docker compose -f docker-compose.vps.yml pull
+          docker compose -f docker-compose.vps.yml up -d --remove-orphans
+          docker compose -f docker-compose.vps.yml ps
+
+          APP_PORT_VALUE="$(grep -E "^APP_PORT=" .env | tail -1 | cut -d= -f2- || true)"
+          APP_PORT_VALUE="${APP_PORT_VALUE:-3020}"
+          for i in 1 2 3 4 5 6 7 8; do
+            if wget -qO- "http://127.0.0.1:${APP_PORT_VALUE}/api/health"; then
+              echo "Deploy health check passed."
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "Deploy health check failed after restart."
+          exit 1
+          REMOTE_SCRIPT
+
+          for attempt in 1 2 3 4; do
+            echo "SSH deploy attempt $attempt/4"
+            if ssh \
+              -i ~/.ssh/slot4_vps_key \
+              -p "$VPS_PORT" \
+              -o StrictHostKeyChecking=yes \
+              -o BatchMode=yes \
+              -o ConnectTimeout=45 \
+              -o ServerAliveInterval=20 \
+              -o ServerAliveCountMax=6 \
+              "$VPS_USER@$VPS_HOST" \
+              "APP_ENV_B64='$APP_ENV_B64' GHCR_TOKEN_B64='$GHCR_TOKEN_B64' DEPLOY_IMAGE='$DEPLOY_IMAGE' REPO_NAME='$REPO_NAME' GHCR_USERNAME='$GHCR_USERNAME' bash -s" < /tmp/slot4-deploy.sh; then
+              exit 0
+            fi
+            sleep $((attempt * 20))
+          done
+
+          echo "Deploy failed after SSH retries."
+          exit 1
