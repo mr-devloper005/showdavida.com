@@ -8,40 +8,42 @@ export const globalContent = {
     baseUrl: slot4BrandConfig.baseUrl,
   },
   nav: {
-    tagline: 'Independent reading platform',
+    tagline: 'Curated portfolios and profiles',
     primaryLinks: [
-      { label: 'Articles', href: '/articles' },
-      { label: 'Visuals', href: '/image-sharing' },
-      { label: 'Listings', href: '/listings' },
+      { label: 'Home', href: '/' },
+      { label: 'Articles', href: '/article' },
+      { label: 'Images', href: '/image' },
+      { label: 'Profiles', href: '/profile' },
       { label: 'Contact', href: '/contact' },
     ],
     actions: {
-      primary: { label: 'Start exploring', href: '/' },
-      secondary: { label: 'Submit', href: '/contact' },
+      primary: { label: 'Try free', href: '/search' },
+      secondary: { label: 'Contact', href: '/contact' },
     },
   },
   footer: {
-    tagline: 'Stories, resources, and discoverable posts',
-    description: 'A connected publishing surface for articles, visuals, listings, profiles, bookmarks, and downloadable resources.',
+    tagline: 'Stories, images, and professional profiles',
+    description: 'A polished space for discovering visual portfolios, useful resources, business listings, and featured posts.',
     columns: [
       {
         title: 'Explore',
         links: [
-          { label: 'Articles', href: '/articles' },
-          { label: 'Listings', href: '/listings' },
-          { label: 'Images', href: '/image-sharing' },
-          { label: 'PDF Library', href: '/pdf' },
+          { label: 'Articles', href: '/article' },
+          { label: 'Images', href: '/image' },
+          { label: 'Listings', href: '/listing' },
+          { label: 'Profiles', href: '/profile' },
         ],
       },
       {
         title: 'Site',
         links: [
           { label: 'About', href: '/about' },
+          { label: 'Search', href: '/search' },
           { label: 'Contact', href: '/contact' },
         ],
       },
     ],
-    bottomNote: 'Built for clean discovery and connected publishing.',
+    bottomNote: 'Built for clean discovery and connected browsing.',
   },
   commonLabels: {
     readMore: 'Read more',
