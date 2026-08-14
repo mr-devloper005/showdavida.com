@@ -1,12 +1,25 @@
 import Link from 'next/link'
-import { ArrowRight, Camera, Heart, Search, Sparkles } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { ArrowRight, BadgeCheck, CalendarClock, Compass, MapPin, Sparkles } from 'lucide-react'
 import type { SitePost } from '@/lib/site-connector'
 import type { HomeTimeSection } from '@/lib/task-data'
 import type { TaskKey } from '@/lib/site-config'
 import { SITE_CONFIG } from '@/lib/site-config'
-import { pagesContent } from '@/editable/content/pages.content'
-import { editableDesignContract as dc, editablePalette as pal } from '@/editable/layouts/design-contract'
-import { getEditableCategory, getEditableExcerpt, getEditablePostImage, postHref, EditorialFeatureCard, CompactIndexCard, ArticleListCard, RailPostCard } from '@/editable/cards/PostCards'
+import { editableDesignContract as dc } from '@/editable/layouts/design-contract'
+import { homeContent } from '@/editable/content/pages.content'
+import {
+  ArticleListCard,
+  CompactIndexCard,
+  EditorialFeatureCard,
+  ImageFirstCard,
+  MiniListRow,
+  MosaicImageCard,
+  OverlayTileCard,
+  getEditableCategory,
+  getEditablePostImage,
+  getEditableTitle,
+  postHref,
+} from '@/editable/cards/PostCards'
 
 type HomeSectionProps = {
   primaryTask: TaskKey
@@ -16,324 +29,396 @@ type HomeSectionProps = {
 }
 
 type HomeStoryRailProps = Pick<HomeSectionProps, 'primaryTask' | 'primaryRoute' | 'posts'>
-type HomeTimeCollectionProps = HomeSectionProps
+
+/* ---------------------------------------------------------------- helpers */
 
 function taskLabel(task: TaskKey) {
   return SITE_CONFIG.tasks.find((item) => item.key === task)?.label || task
 }
 
-function firstPost(posts: SitePost[]) {
-  return posts.find((post) => post?.slug || post?.id || post?.title) || posts[0]
+function Shell({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return <div className={`mx-auto w-full max-w-[var(--editable-container)] px-4 sm:px-6 lg:px-8 ${className}`}>{children}</div>
+}
+
+/** Builds the topic chip list from whatever categories the live feed contains. */
+function deriveTopics(posts: SitePost[], limit = 8) {
+  const counts = new Map<string, number>()
+  for (const post of posts) {
+    const raw = getEditableCategory(post, '')
+    const label = raw ? raw.replace(/[-_]+/g, ' ').trim() : ''
+    if (!label) continue
+    const key = label.toLowerCase()
+    counts.set(key, (counts.get(key) || 0) + 1)
+  }
+  return Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([label, count]) => ({ label, count }))
 }
 
 function SectionHeading({
   eyebrow,
   title,
   description,
-  action,
+  actionHref,
+  actionLabel,
+  align = 'left',
 }: {
   eyebrow: string
   title: string
   description?: string
-  action?: { label: string; href: string }
+  actionHref?: string
+  actionLabel?: string
+  align?: 'left' | 'center'
 }) {
+  const centered = align === 'center'
   return (
-    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-      <div className="max-w-3xl">
-        <p className={`${dc.type.eyebrow} ${pal.accentText}`}>{eyebrow}</p>
-        <h2 className="mt-3 text-3xl font-black leading-[0.95] tracking-[-0.07em] sm:text-4xl">{title}</h2>
-        {description ? <p className={`mt-4 max-w-2xl text-sm leading-7 ${pal.mutedText} sm:text-base`}>{description}</p> : null}
+    <div className={`flex flex-wrap gap-4 ${centered ? 'flex-col items-center text-center' : 'items-end justify-between'}`}>
+      <div className="max-w-2xl">
+        <p className={`${dc.type.eyebrow} text-[var(--sd-accent)]`}>{eyebrow}</p>
+        <h2 className={`mt-2.5 ${dc.type.sectionTitle} text-[var(--sd-text)]`}>{title}</h2>
+        {description ? <p className="mt-3 text-[15px] leading-[1.75] text-[var(--sd-muted)]">{description}</p> : null}
       </div>
-      {action ? (
-        <Link href={action.href} className="inline-flex items-center gap-2 self-start rounded-full border border-black/10 bg-white px-5 py-3 text-sm font-black transition hover:-translate-y-0.5">
-          {action.label} <ArrowRight className="h-4 w-4" />
+      {actionHref && !centered ? (
+        <Link
+          href={actionHref}
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--sd-accent)] transition hover:gap-2.5"
+        >
+          {actionLabel || 'See all'}
+          <ArrowRight className="h-4 w-4" />
         </Link>
       ) : null}
     </div>
   )
 }
 
-function SearchBar({ placeholder = 'Search work, profiles, and topics' }: { placeholder?: string }) {
-  return (
-    <form action="/search" className="w-full max-w-2xl">
-      <label className="flex items-center gap-3 rounded-full border border-black/10 bg-white px-4 py-3 shadow-[0_14px_40px_rgba(17,17,17,0.06)]">
-        <Search className="h-4 w-4 opacity-55" />
-        <input name="q" type="search" placeholder={placeholder} className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:text-current/35 sm:text-base" />
-        <button className="rounded-full bg-black px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-white">
-          Go
-        </button>
-      </label>
-    </form>
-  )
-}
+/* ------------------------------------------------------------------ HERO */
 
-function FloatingStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-[1.4rem] border border-black/10 bg-white/90 p-4 shadow-[0_18px_50px_rgba(17,17,17,0.08)] backdrop-blur">
-      <p className="text-[10px] font-black uppercase tracking-[0.24em] opacity-55">{label}</p>
-      <p className="mt-2 text-lg font-black tracking-[-0.05em]">{value}</p>
-    </div>
-  )
-}
+export function EditableHomeHero({ primaryTask, primaryRoute, posts }: HomeSectionProps) {
+  const hero = homeContent.hero
+  const collage = posts.slice(0, 6)
+  const [lead, ...rest] = collage
 
-function FeaturedStage({ post, primaryTask, primaryRoute }: { post?: SitePost | null; primaryTask: TaskKey; primaryRoute: string }) {
-  const safePost = post || null
-  const image = getEditablePostImage(safePost)
-  const title = safePost?.title || 'A polished home for featured work.'
-  const category = safePost ? getEditableCategory(safePost) : 'Featured'
-  const summary = safePost ? getEditableExcerpt(safePost, 120) : pagesContent.home.hero.featureCardDescription
   return (
-    <div className="relative overflow-hidden rounded-[2.4rem] border border-black/10 bg-[var(--slot4-page-bg)] shadow-[0_24px_80px_rgba(17,17,17,0.1)]">
-      <div className="grid gap-0 lg:grid-cols-[0.9fr_1.1fr]">
-        <div className="p-7 sm:p-10 lg:p-12">
-          <p className={`${dc.type.eyebrow} ${pal.accentText}`}>{pagesContent.home.hero.badge}</p>
-          <h1 className="mt-5 max-w-lg text-5xl font-black leading-[0.92] tracking-[-0.08em] sm:text-6xl lg:text-[4.6rem]">
-            {pagesContent.home.hero.title.join(' ')}
-          </h1>
-          <p className={`mt-6 max-w-xl text-base leading-8 ${pal.mutedText} sm:text-lg`}>{pagesContent.home.hero.description}</p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link href={primaryRoute} className={dc.button.accent}>
-              {pagesContent.home.hero.primaryCta.label} <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link href={pagesContent.home.hero.secondaryCta.href} className={dc.button.secondary}>
-              {pagesContent.home.hero.secondaryCta.label}
-            </Link>
-          </div>
-          <div className="mt-10 flex flex-wrap gap-3">
-            <span className="rounded-full border border-black/10 bg-white px-4 py-2 text-[11px] font-black uppercase tracking-[0.24em]">Creative work</span>
-            <span className="rounded-full border border-black/10 bg-white px-4 py-2 text-[11px] font-black uppercase tracking-[0.24em]">Image-led</span>
-          </div>
-        </div>
+    <section>
+      {/* split stage: hatched maroon copy panel + edge-to-edge collage */}
+      <div className="grid lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
+        <div className="sd-hatch relative flex items-center bg-[linear-gradient(150deg,var(--sd-hero)_0%,var(--sd-hero-2)_100%)] px-4 py-14 sm:px-8 lg:py-24 lg:pl-[max(2rem,calc((100vw-var(--editable-container))/2+2rem))] lg:pr-14">
+          <div className="sd-rise w-full max-w-xl">
+            <p className={`${dc.type.eyebrow} text-[var(--sd-accent)]`}>{hero.badge}</p>
 
-        <div className="relative min-h-[420px] bg-black/5 lg:min-h-[620px]">
-          <img src={image} alt={title} className="absolute inset-0 h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(17,17,17,0.45))]" />
-          <div className="absolute left-5 top-5 rounded-full border border-white/20 bg-black/30 px-4 py-2 text-xs font-black uppercase tracking-[0.24em] text-white backdrop-blur">
-            {pagesContent.home.hero.featureCardBadge}
-          </div>
-          <div className="absolute bottom-5 left-5 right-5 grid gap-4 sm:grid-cols-[1.1fr_0.9fr]">
-            <div className="rounded-[1.5rem] border border-white/15 bg-white/90 p-5 text-black shadow-[0_18px_50px_rgba(17,17,17,0.12)] backdrop-blur">
-              <p className="text-[10px] font-black uppercase tracking-[0.24em] opacity-55">{category}</p>
-              <h3 className="mt-2 text-2xl font-black leading-[0.98] tracking-[-0.06em]">{title}</h3>
-              <p className="mt-3 text-sm leading-7 opacity-70">{summary}</p>
-              <Link href={safePost ? postHref(primaryTask, safePost, primaryRoute) : primaryRoute} className="mt-4 inline-flex items-center gap-2 text-sm font-black">
-                Open feature <ArrowRight className="h-4 w-4" />
+            <h1 className="mt-5 text-[2.4rem] font-bold leading-[1.05] tracking-[-0.03em] text-white sm:text-5xl lg:text-[3.5rem]">
+              {hero.title.map((line, index) => (
+                <span key={line} className="block">
+                  {index === hero.title.length - 1 ? <span className="text-[var(--sd-accent)]">{line}</span> : line}
+                </span>
+              ))}
+            </h1>
+
+            <p className="mt-5 max-w-md text-[15px] leading-[1.85] text-white/65 sm:text-base">{hero.description}</p>
+
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link href={primaryRoute} className={dc.button.primary}>
+                {hero.primaryCta.label} <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link href={hero.secondaryCta.href} className={dc.button.secondary}>
+                {hero.secondaryCta.label}
               </Link>
             </div>
-            <div className="grid gap-3">
-              <FloatingStat label="Focus" value={pagesContent.home.hero.focusLabel} />
-              <FloatingStat label="Task" value={taskLabel(primaryTask)} />
-            </div>
+
+            <p className="mt-7 text-[13px] text-white/40">{hero.meta.join(' · ')}</p>
           </div>
         </div>
+
+        {/* collage — one wide lead tile with a supporting grid underneath */}
+        <div className="relative min-h-[280px] bg-[var(--sd-surface-2)]">
+          {lead ? (
+            <div className="grid h-full grid-cols-2 grid-rows-2 gap-px">
+              <Link
+                href={postHref(primaryTask, lead, primaryRoute)}
+                className="group relative col-span-2 overflow-hidden sm:col-span-1 sm:row-span-2"
+              >
+                <img
+                  src={getEditablePostImage(lead)}
+                  alt={getEditableTitle(lead, 'Featured')}
+                  className="absolute inset-0 h-full w-full object-cover transition duration-[900ms] ease-out group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_50%,rgba(10,7,6,0.85)_100%)]" />
+                <div className="absolute inset-x-0 bottom-0 p-5">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--sd-accent)]">
+                    {getEditableCategory(lead, taskLabel(primaryTask))}
+                  </p>
+                  <h2 className="mt-1.5 line-clamp-2 text-base font-semibold leading-snug text-white sm:text-lg">
+                    {getEditableTitle(lead)}
+                  </h2>
+                </div>
+              </Link>
+
+              {rest.slice(0, 2).map((post) => (
+                <Link key={post.id || post.slug} href={postHref(primaryTask, post, primaryRoute)} className="group relative overflow-hidden">
+                  <img
+                    src={getEditablePostImage(post)}
+                    alt={getEditableTitle(post, 'Featured')}
+                    className="absolute inset-0 h-full w-full object-cover transition duration-[900ms] ease-out group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_45%,rgba(10,7,6,0.85)_100%)]" />
+                  <p className="absolute inset-x-0 bottom-0 line-clamp-2 p-3.5 text-[12px] font-semibold leading-snug text-white">
+                    {getEditableTitle(post)}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="flex h-full min-h-[280px] items-center justify-center p-10 text-center">
+              <div>
+                <Compass className="mx-auto h-8 w-8 text-white/25" />
+                <p className="mt-4 text-sm font-semibold text-white/70">{hero.featureCardTitle}</p>
+                <p className="mt-2 max-w-sm text-sm leading-[1.7] text-white/40">{hero.featureCardDescription}</p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+
+      {/* trust strip under the stage */}
+      <div className="border-y border-[var(--sd-line)] bg-[var(--sd-tabs)]">
+        <Shell className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 py-4 text-[13px] font-medium text-[var(--sd-muted)]">
+          <span className="inline-flex items-center gap-2">
+            <BadgeCheck className="h-4 w-4 text-[var(--sd-accent)]" /> {hero.strip[0]}
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-[var(--sd-accent)]" /> {hero.strip[1]}
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <CalendarClock className="h-4 w-4 text-[var(--sd-accent)]" /> {hero.strip[2]}
+          </span>
+          <Link href={primaryRoute} className="inline-flex items-center gap-1.5 font-semibold text-[var(--sd-text)] transition hover:gap-2.5 hover:text-[var(--sd-accent)]">
+            Browse {taskLabel(primaryTask).toLowerCase()} <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </Shell>
+      </div>
+    </section>
   )
 }
 
-function FeaturedCardStack({ primaryTask, primaryRoute, posts }: HomeSectionProps) {
-  const featured = posts.slice(0, 7)
-  if (!featured.length) return null
-  const hero = featured[0]
-  const compact = featured.slice(1, 4)
-  const horizontal = featured.slice(4, 6)
-  return (
-    <section className={`${pal.creamBg} border-y border-black/10`}>
-      <div className="mx-auto max-w-[var(--editable-container)] px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
-        <SectionHeading
-          eyebrow={pagesContent.home.intro.badge}
-          title={pagesContent.home.intro.title}
-          description={pagesContent.home.intro.paragraphs[0]}
-          action={{ label: 'See all posts', href: primaryRoute }}
-        />
+/* --------------------------------------------------- JUST ADDED tile grid */
 
-        <div className="mt-10 grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
-          <EditorialFeatureCard post={hero} href={postHref(primaryTask, hero, primaryRoute)} label="Hero pick" />
-          <div className="grid gap-4">
-            {compact.map((post, index) => (
-              <CompactIndexCard key={post.id || post.slug || index} post={post} href={postHref(primaryTask, post, primaryRoute)} index={index} />
-            ))}
-          </div>
+export function EditableStoryRail({ primaryTask, primaryRoute, posts }: HomeStoryRailProps) {
+  const tiles = posts.slice(0, 8)
+  if (!tiles.length) return null
+  const copy = homeContent.justAdded
+
+  return (
+    <section className="bg-[var(--sd-bg)]">
+      <Shell className="py-14 sm:py-16 lg:py-20">
+        <div className="text-center">
+          <p className={`${dc.type.eyebrow} text-[var(--sd-accent)]`}>{copy.eyebrow}</p>
+          <h2 className="mt-3 text-[1.8rem] font-bold leading-[1.15] tracking-[-0.025em] text-[var(--sd-text)] sm:text-[2.4rem]">
+            {copy.title}
+          </h2>
         </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
-          {horizontal.map((post, index) => (
-            <ArticleListCard key={post.id || post.slug || index} post={post} href={postHref(primaryTask, post, primaryRoute)} index={index} />
+        <div className="mt-10 grid gap-6 sd-stagger sm:grid-cols-2 xl:grid-cols-4">
+          {tiles.map((post, index) => (
+            <OverlayTileCard
+              key={post.id || post.slug || index}
+              post={post}
+              href={postHref(primaryTask, post, primaryRoute)}
+              flag={index < 4 ? copy.flag : undefined}
+            />
           ))}
         </div>
-      </div>
+      </Shell>
     </section>
   )
 }
 
-function TaskRailSection({ primaryTask, primaryRoute, posts }: HomeStoryRailProps) {
-  const railPosts = posts.slice(0, 12)
-  if (!railPosts.length) return null
-  return (
-    <section className={`${pal.warmBg} border-t border-black/10`}>
-      <div className="mx-auto max-w-[var(--editable-container)] px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
-        <SectionHeading
-          eyebrow="More to explore"
-          title={`Browse ${taskLabel(primaryTask).toLowerCase()} in a rolling gallery`}
-          description="This rail keeps the browsing experience lively with image-first cards, compact cards, and quick editorial reads."
-          action={{ label: 'Open archive', href: primaryRoute }}
-        />
-        <div className={`${dc.layout.rail} mt-8`}>
-          {railPosts.map((post, index) => <RailPostCard key={post.id || post.slug || index} post={post} href={postHref(primaryTask, post, primaryRoute)} index={index} />)}
-        </div>
-      </div>
-    </section>
-  )
-}
+/* ------------------------------------------------- LAST 7 DAYS card grid */
 
-function TimeSectionBlocks({ primaryTask, primaryRoute, posts, timeSections }: HomeTimeCollectionProps) {
-  const sectionPosts = timeSections.flatMap((section) => section.posts).filter(Boolean)
-  const fallbackPosts = sectionPosts.length ? sectionPosts : posts.slice(6)
-  const lead = fallbackPosts[0] || firstPost(posts)
-  const list = fallbackPosts.slice(1, 6)
+export function EditableMagazineSplit({ primaryTask, primaryRoute, posts }: HomeSectionProps) {
+  const cards = posts.slice(0, 8)
+  if (!cards.length) return null
+  const copy = homeContent.recent
+  const topics = deriveTopics(posts, 7)
+
   return (
-    <section className={`${pal.pageBg}`}>
-      <div className="mx-auto max-w-[var(--editable-container)] px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
-        <div className="grid gap-8 lg:grid-cols-[0.92fr_1.08fr] lg:items-start">
-          <div>
-            <p className={`${dc.type.eyebrow} ${pal.accentText}`}>Discovery notes</p>
-            <h2 className="mt-3 text-3xl font-black leading-[0.96] tracking-[-0.07em] sm:text-4xl">
-              The archive stays easy to scan, even when the content types change.
-            </h2>
-            <p className={`mt-5 max-w-xl text-sm leading-7 ${pal.mutedText} sm:text-base`}>
-              Search-first browsing, stronger imagery, and varied card layouts help the page feel curated instead of repetitive.
-            </p>
-            <SearchBar />
-          </div>
-          <div className="grid gap-4">
-            {list.map((post, index) => (
-              <ArticleListCard key={post.id || post.slug || index} post={post} href={postHref(primaryTask, post, primaryRoute)} index={index} />
+    <section className="border-t border-[var(--sd-line)] bg-[var(--sd-bg-2)]">
+      <Shell className="py-14 sm:py-16 lg:py-20">
+        <SectionHeading eyebrow={copy.eyebrow} title={copy.title} actionHref={primaryRoute} actionLabel={copy.actionLabel} />
+
+        {topics.length ? (
+          <div className="mt-6 flex flex-wrap gap-2">
+            <Link href={primaryRoute} className={`${dc.chip.base} ${dc.chip.active}`}>
+              All
+            </Link>
+            {topics.map((topic) => (
+              <Link
+                key={topic.label}
+                href={`${primaryRoute}?category=${encodeURIComponent(topic.label.replace(/\s+/g, '-'))}`}
+                className={`${dc.chip.base} ${dc.chip.quiet} capitalize`}
+              >
+                {topic.label}
+                <span className="text-[10px] opacity-60">{topic.count}</span>
+              </Link>
             ))}
           </div>
-        </div>
+        ) : null}
 
-        {lead ? (
-          <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_0.78fr]">
-            <Link href={postHref(primaryTask, lead, primaryRoute)} className="group relative min-h-[420px] overflow-hidden rounded-[2.2rem] bg-black text-white shadow-[0_24px_80px_rgba(17,17,17,0.16)]">
-              <img src={getEditablePostImage(lead)} alt={lead.title || 'Lead post'} className="absolute inset-0 h-full w-full object-cover opacity-70 transition duration-700 group-hover:scale-105" />
-              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(17,17,17,0.06),rgba(17,17,17,0.8))]" />
-              <div className="relative z-10 flex min-h-[420px] flex-col justify-end p-7 sm:p-10">
-                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-white/70">Featured stream</p>
-                <h3 className="mt-4 max-w-2xl text-4xl font-black leading-[0.94] tracking-[-0.08em] sm:text-5xl">{lead.title || 'Featured post'}</h3>
-                <p className="mt-5 max-w-xl text-sm leading-7 text-white/78">{getEditableExcerpt(lead, 180) || 'A large feature area for the strongest post in the current batch.'}</p>
-              </div>
-            </Link>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {posts.slice(8, 12).map((post, index) => (
-                <CompactIndexCard key={post.id || post.slug || index} post={post} href={postHref(primaryTask, post, primaryRoute)} index={index} />
+        <div className="mt-8 grid gap-6 sd-stagger sm:grid-cols-2 xl:grid-cols-4">
+          {cards.map((post, index) => (
+            <ImageFirstCard key={post.id || post.slug || index} post={post} href={postHref(primaryTask, post, primaryRoute)} />
+          ))}
+        </div>
+      </Shell>
+    </section>
+  )
+}
+
+/* ------------------------------------------------- MIXED COLLECTION BLOCKS */
+
+export function EditableTimeCollections({ primaryTask, primaryRoute, posts, timeSections }: HomeSectionProps) {
+  const timePosts = timeSections.flatMap((section) => section.posts).filter(Boolean)
+  const pool = timePosts.length ? timePosts : posts
+  if (!pool.length) return null
+
+  const feature = pool[0]
+  const horizontal = pool.slice(1, 3)
+  const compact = pool.slice(3, 5)
+  const mosaic = pool.slice(5, 11)
+  const sidebar = pool.slice(1, 5)
+  const spotlight = timeSections[0]
+
+  return (
+    <>
+      {/* editorial split: one hero card + supporting rows */}
+      <section className="border-t border-[var(--sd-line)] bg-[var(--sd-bg)]">
+        <Shell className="py-14 sm:py-16 lg:py-20">
+          <SectionHeading
+            eyebrow={spotlight?.eyebrow || homeContent.spotlight.eyebrow}
+            title={spotlight?.title || homeContent.spotlight.title}
+            description={spotlight?.description || homeContent.spotlight.description}
+            actionHref={spotlight?.href || primaryRoute}
+            actionLabel="Open section"
+          />
+
+          <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]">
+            <EditorialFeatureCard
+              post={feature}
+              href={postHref(primaryTask, feature, primaryRoute)}
+              label={homeContent.spotlight.featureLabel}
+            />
+
+            <div className="grid min-w-0 content-start gap-4">
+              {horizontal.map((post, index) => (
+                <ArticleListCard
+                  key={post.id || post.slug || index}
+                  post={post}
+                  href={postHref(primaryTask, post, primaryRoute)}
+                  index={index}
+                />
+              ))}
+              {compact.map((post, index) => (
+                <CompactIndexCard
+                  key={post.id || post.slug || index}
+                  post={post}
+                  href={postHref(primaryTask, post, primaryRoute)}
+                  index={index + horizontal.length}
+                />
               ))}
             </div>
           </div>
-        ) : null}
-      </div>
-    </section>
-  )
-}
+        </Shell>
+      </section>
 
-export function EditableHomeHero({ primaryTask, primaryRoute, posts }: HomeSectionProps) {
-  const lead = firstPost(posts)
-  return (
-    <section className="relative overflow-hidden">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-[-8%] top-[-10%] h-[28rem] w-[28rem] rounded-full bg-[var(--slot4-accent-soft)]/60 blur-3xl" />
-        <div className="absolute right-[-12%] top-[15%] h-[24rem] w-[24rem] rounded-full bg-white/70 blur-3xl" />
-        <div className="absolute bottom-[-12%] left-[18%] h-[18rem] w-[18rem] rounded-full bg-[var(--slot4-panel-bg)]/80 blur-3xl" />
-      </div>
-      <div className="relative mx-auto max-w-[var(--editable-container)] px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
-        <FeaturedStage post={lead} primaryTask={primaryTask} primaryRoute={primaryRoute} />
-        <div className="mt-8 grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="rounded-[2.2rem] border border-black/10 bg-white p-6 shadow-[0_24px_80px_rgba(17,17,17,0.08)] sm:p-8">
-            <p className={`${dc.type.eyebrow} ${pal.accentText}`}>{pagesContent.home.intro.badge}</p>
-            <h2 className="mt-3 max-w-2xl text-3xl font-black leading-[0.94] tracking-[-0.07em] sm:text-4xl">
-              {pagesContent.home.intro.title}
-            </h2>
-            <div className={`mt-5 space-y-4 text-sm leading-7 ${pal.mutedText}`}>
-              {pagesContent.home.intro.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
-            </div>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-[2.2rem] border border-black/10 bg-black p-6 text-white shadow-[0_24px_80px_rgba(17,17,17,0.16)]">
-              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-white/65">Quick links</p>
-              <div className="mt-4 grid gap-3">
-                <Link href={primaryRoute} className="inline-flex items-center justify-between rounded-full border border-white/10 bg-white/8 px-4 py-3 text-sm font-black text-white">
-                  Browse {taskLabel(primaryTask)}
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-                <Link href="/search" className="inline-flex items-center justify-between rounded-full border border-white/10 bg-white/8 px-4 py-3 text-sm font-black text-white">
-                  Search archive
-                  <Search className="h-4 w-4" />
-                </Link>
+      {/* discovery mosaic + a quiet sticky aside */}
+      {mosaic.length ? (
+        <section className="border-t border-[var(--sd-line)] bg-[var(--sd-bg-2)]">
+          <Shell className="py-14 sm:py-16 lg:py-20">
+            <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+              <div className="min-w-0">
+                <SectionHeading
+                  eyebrow={homeContent.mosaic.eyebrow}
+                  title={homeContent.mosaic.title}
+                  description={homeContent.mosaic.description}
+                />
+                <div className="mt-8 columns-1 gap-5 sm:columns-2 xl:columns-3 [&>*]:mb-5">
+                  {mosaic.map((post, index) => (
+                    <MosaicImageCard
+                      key={post.id || post.slug || index}
+                      post={post}
+                      href={postHref(primaryTask, post, primaryRoute)}
+                      index={index}
+                    />
+                  ))}
+                </div>
               </div>
+
+              <aside className="min-w-0 lg:sticky lg:top-40 lg:self-start">
+                <div className="rounded-[var(--sd-radius-lg)] bg-[var(--sd-promo)] p-6">
+                  <p className={`${dc.type.eyebrow} text-[var(--sd-accent)]`}>{homeContent.aside.eyebrow}</p>
+                  <h3 className="mt-3 text-lg font-bold leading-snug tracking-[-0.015em] text-white">{homeContent.aside.title}</h3>
+                  <p className="mt-3 text-sm leading-[1.75] text-white/55">{homeContent.aside.description}</p>
+                  <Link
+                    href={primaryRoute}
+                    className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[var(--sd-accent)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--sd-accent-strong)]"
+                  >
+                    <Compass className="h-4 w-4" />
+                    Browse {taskLabel(primaryTask).toLowerCase()}
+                  </Link>
+                </div>
+
+                {sidebar.length ? (
+                  <div className="mt-5 rounded-[var(--sd-radius-lg)] border border-[var(--sd-line)] bg-[var(--sd-surface)] p-4">
+                    <p className={`${dc.type.eyebrow} px-2 text-[var(--sd-faint)]`}>{homeContent.aside.listTitle}</p>
+                    <div className="mt-3 grid gap-1">
+                      {sidebar.map((post, index) => (
+                        <MiniListRow key={post.id || post.slug || index} post={post} href={postHref(primaryTask, post, primaryRoute)} />
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </aside>
             </div>
-            <div className="grid gap-4">
-              <FloatingStat label="Visual style" value="High contrast" />
-              <FloatingStat label="Experience" value="Mobile first" />
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
+          </Shell>
+        </section>
+      ) : null}
+    </>
   )
 }
 
-export function EditableStoryRail({ primaryTask, primaryRoute, posts }: HomeStoryRailProps) {
-  return <TaskRailSection primaryTask={primaryTask} primaryRoute={primaryRoute} posts={posts} />
-}
-
-export function EditableMagazineSplit({ primaryTask, primaryRoute, posts, timeSections }: HomeSectionProps) {
-  return <FeaturedCardStack primaryTask={primaryTask} primaryRoute={primaryRoute} posts={posts} timeSections={timeSections} />
-}
-
-export function EditableTimeCollections({ primaryTask, primaryRoute, posts, timeSections }: HomeSectionProps) {
-  return <TimeSectionBlocks primaryTask={primaryTask} primaryRoute={primaryRoute} posts={posts} timeSections={timeSections} />
-}
+/* -------------------------------------------------------------------- CTA */
 
 export function EditableHomeCta() {
+  const cta = homeContent.cta
   return (
-    <section id="get-app" className={`${pal.darkBg} relative overflow-hidden text-white`}>
-      <div className="pointer-events-none absolute inset-0 opacity-40">
-        <div className="absolute left-[8%] top-[12%] h-64 w-64 rounded-full bg-[var(--slot4-accent-fill)]/20 blur-3xl" />
-        <div className="absolute right-[12%] bottom-[10%] h-56 w-56 rounded-full bg-white/10 blur-3xl" />
-      </div>
-      <div className="relative mx-auto max-w-[var(--editable-container)] px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
-        <div className="grid gap-8 rounded-[2.4rem] border border-white/10 bg-white/6 p-7 shadow-[0_30px_100px_rgba(0,0,0,0.24)] backdrop-blur-lg lg:grid-cols-[1fr_0.8fr] lg:p-10">
-          <div>
-            <p className={`${dc.type.eyebrow} text-white/65`}>{pagesContent.home.cta.badge}</p>
-            <h2 className="mt-4 max-w-3xl text-4xl font-black leading-[0.92] tracking-[-0.08em] sm:text-5xl">{pagesContent.home.cta.title}</h2>
-            <p className="mt-5 max-w-2xl text-base leading-8 text-white/76">{pagesContent.home.cta.description}</p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link href={pagesContent.home.cta.primaryCta.href} className={dc.button.accent}>
-                {pagesContent.home.cta.primaryCta.label} <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link href={pagesContent.home.cta.secondaryCta.href} className={dc.button.secondary}>
-                {pagesContent.home.cta.secondaryCta.label}
-              </Link>
-            </div>
+    <section id="get-app" className="border-t border-[var(--sd-line)] bg-[var(--sd-bg)]">
+      <Shell className="py-14 sm:py-16 lg:py-20">
+        <div className="sd-hatch grid gap-8 rounded-[var(--sd-radius-lg)] bg-[linear-gradient(135deg,var(--sd-hero)_0%,var(--sd-hero-2)_100%)] p-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:p-12">
+          <div className="max-w-2xl">
+            <p className={`${dc.type.eyebrow} text-[var(--sd-accent)]`}>{cta.badge}</p>
+            <h2 className="mt-3 text-[1.7rem] font-bold leading-[1.15] tracking-[-0.025em] text-white sm:text-[2.2rem]">{cta.title}</h2>
+            <p className="mt-4 text-[15px] leading-[1.8] text-white/60">{cta.description}</p>
+            <p className="mt-5 inline-flex items-center gap-2 text-[13px] text-white/40">
+              <Sparkles className="h-3.5 w-3.5 text-[var(--sd-accent)]" />
+              {homeContent.hero.meta.join(' · ')}
+            </p>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-[1.8rem] border border-white/10 bg-white/8 p-5">
-              <Heart className="h-5 w-5 text-[var(--slot4-accent-fill)]" />
-              <p className="mt-4 text-xl font-black tracking-[-0.05em]">Curated discovery</p>
-              <p className="mt-2 text-sm leading-7 text-white/70">Featured work, profiles, and resources all sit in the same visual conversation.</p>
-            </div>
-            <div className="rounded-[1.8rem] border border-white/10 bg-white/8 p-5">
-              <Camera className="h-5 w-5 text-[var(--slot4-accent-fill)]" />
-              <p className="mt-4 text-xl font-black tracking-[-0.05em]">Image-first rhythm</p>
-              <p className="mt-2 text-sm leading-7 text-white/70">Cards vary across the site so the layout never feels repetitive.</p>
-            </div>
-            <div className="rounded-[1.8rem] border border-white/10 bg-white/8 p-5 sm:col-span-2">
-              <Sparkles className="h-5 w-5 text-[var(--slot4-accent-fill)]" />
-              <p className="mt-4 text-xl font-black tracking-[-0.05em]">Built for mobile and desktop</p>
-              <p className="mt-2 text-sm leading-7 text-white/70">The stack compresses cleanly on smaller screens without losing the featured image feel.</p>
-            </div>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href={cta.primaryCta.href}
+              className="inline-flex items-center gap-2 rounded-full bg-[var(--sd-accent)] px-7 py-3 text-sm font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-[var(--sd-accent-strong)]"
+            >
+              {cta.primaryCta.label} <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href={cta.secondaryCta.href}
+              className="inline-flex items-center gap-2 rounded-full border border-white/20 px-7 py-3 text-sm font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-white/[0.08]"
+            >
+              {cta.secondaryCta.label}
+            </Link>
           </div>
         </div>
-      </div>
+      </Shell>
     </section>
   )
 }
