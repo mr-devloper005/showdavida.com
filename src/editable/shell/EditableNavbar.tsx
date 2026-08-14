@@ -1,128 +1,248 @@
 'use client'
 
-import { useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Menu, Search, X, Sparkles, ArrowRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, LogIn, Menu, PlusCircle, Search, X } from 'lucide-react'
 import { SITE_CONFIG } from '@/lib/site-config'
 import { globalContent } from '@/editable/content/global.content'
-import { getVisualPreset, visualSystem } from '@/editable/theme/visual-system'
 import { useEditableLocalAuthSession } from '@/editable/components/EditableLocalAuthForms'
 
+const TICKER_NOTES = [
+  'New listings added daily — discover fresh businesses today',
+  'Browse verified galleries from owners across every category',
+  'Free to list — add your business in a couple of minutes',
+]
+
 export function EditableNavbar() {
-  const preset = getVisualPreset(visualSystem.recommendedPreset as any)
   const [open, setOpen] = useState(false)
+  const [note, setNote] = useState(0)
   const pathname = usePathname()
   const { session, logout } = useEditableLocalAuthSession()
-  const navVars = {
-    '--editable-nav-bg': preset.colors.background,
-    '--editable-nav-text': preset.colors.foreground,
-    '--editable-nav-active': preset.colors.foreground,
-    '--editable-nav-active-text': preset.colors.background,
-    '--editable-cta-bg': preset.colors.primary,
-    '--editable-cta-text': preset.colors.foreground === '#111111' ? '#111111' : preset.colors.background,
-    '--editable-search-bg': preset.colors.surface,
-    '--editable-border': `${preset.colors.muted}33`,
-    '--editable-container': '1500px',
-  } as CSSProperties
-  const navItems = useMemo(
-    () => [
-      { label: 'Home', href: '/' },
-      ...SITE_CONFIG.tasks
-        .filter((task) => task.enabled && task.key !== 'profile')
-        .slice(0, 4)
-        .map((task) => ({ label: task.label, href: task.route })),
-      { label: 'Search', href: '/search' },
-      { label: 'About', href: '/about' },
-    ],
+
+  const taskTabs = useMemo(
+    () => SITE_CONFIG.tasks.filter((task) => task.enabled).map((task) => ({ label: task.label, href: task.route })),
     []
   )
-  const primaryAction = globalContent.nav?.actions?.primary || { label: 'Try free', href: '/search' }
+
+  const menuItems = useMemo(
+    () => [{ label: 'Home', href: '/' }, ...taskTabs, { label: 'Search', href: '/search' }, { label: 'About', href: '/about' }, { label: 'Contact', href: '/contact' }],
+    [taskTabs]
+  )
+
+  const browseAllHref = taskTabs[0]?.href || '/search'
+
+  // Close the mobile sheet whenever the route changes.
+  useEffect(() => {
+    setOpen(false)
+  }, [pathname])
+
+  const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`))
+  const cycleNote = (step: number) => setNote((value) => (value + step + TICKER_NOTES.length) % TICKER_NOTES.length)
 
   return (
-    <header style={navVars} className="sticky top-0 z-50 text-[var(--editable-nav-text)]">
-      <nav className="mx-auto flex w-full max-w-[var(--editable-container)] items-center gap-3 px-4 py-4 sm:px-6 lg:px-8">
-        <div className="flex min-w-0 flex-1 items-center gap-3 rounded-full border border-black/10 bg-white/75 px-4 py-3 shadow-[0_16px_48px_rgba(17,17,17,0.07)] backdrop-blur-xl">
-          <Link href="/" className="group flex shrink-0 items-center gap-3">
-            <span className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border border-black/10 bg-black text-[12px] font-black uppercase tracking-[0.2em] text-white shadow-sm">
-              <img src="/favicon.png?v=20260413" alt={SITE_CONFIG.name} className="h-16 w-16 scale-[1.12] object-contain" />
-            </span>
-            <span className="hidden min-w-0 sm:block">
-              <span className="block truncate text-base font-black tracking-[-0.05em] text-black">{SITE_CONFIG.name}</span>
-            </span>
+    <header className="sticky top-0 z-50 text-[var(--sd-text)]">
+      {/* tier 1 — rotating announcement */}
+      <div className="hidden bg-[var(--sd-ticker)] md:block">
+        <div className="mx-auto flex w-full max-w-[var(--editable-container)] items-center justify-center gap-4 px-4 py-2.5 sm:px-6 lg:px-8">
+          <button
+            type="button"
+            onClick={() => cycleNote(-1)}
+            aria-label="Previous announcement"
+            className="text-[var(--sd-faint)] transition hover:text-[var(--sd-accent)]"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <p className="truncate text-[13px] font-semibold text-[var(--sd-text)]">{TICKER_NOTES[note]}</p>
+          <button
+            type="button"
+            onClick={() => cycleNote(1)}
+            aria-label="Next announcement"
+            className="text-[var(--sd-faint)] transition hover:text-[var(--sd-accent)]"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* tier 2 — brand, search, account */}
+      <div className="bg-[var(--sd-nav)]">
+        <div className="mx-auto flex w-full max-w-[var(--editable-container)] items-center gap-4 px-4 py-3 sm:px-6 lg:px-8">
+          <Link href="/" className="group flex shrink-0 items-center gap-2.5">
+            <img src="/favicon.png" alt="" aria-hidden="true" className="h-9 w-9 object-contain" />
+            <span className="text-[19px] font-bold tracking-[-0.02em] text-white">{SITE_CONFIG.name}</span>
           </Link>
 
-          <div className="hidden min-w-0 flex-1 justify-center lg:flex">
-            <form action="/search" className="w-full max-w-[420px]">
-              <label className="flex items-center rounded-full border border-black/10 bg-[var(--editable-search-bg)] px-4 py-2">
-                <Search className="h-4 w-4 opacity-55" />
-                <input name="q" type="search" placeholder="Search work, profiles, or topics" className="min-w-0 flex-1 bg-transparent px-3 text-sm font-semibold outline-none placeholder:text-current/45" />
-              </label>
-            </form>
-          </div>
+          <form action="/search" className="mx-auto hidden w-full max-w-2xl items-center gap-2 rounded-full bg-[var(--sd-surface)] p-1 pl-5 ring-1 ring-white/[0.07] transition focus-within:ring-[var(--sd-accent-ring)] md:flex">
+            <Search className="h-4 w-4 shrink-0 text-[var(--sd-faint)]" />
+            <input
+              name="q"
+              type="search"
+              placeholder="Search businesses, images..."
+              aria-label="Search the directory"
+              className="min-w-0 flex-1 bg-transparent py-2.5 text-sm font-medium text-[var(--sd-text)] outline-none"
+            />
+            <button className="shrink-0 rounded-full bg-[var(--sd-accent)] px-7 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--sd-accent-strong)]">
+              Search
+            </button>
+          </form>
 
-          <div className="hidden items-center gap-1 xl:flex">
-            {navItems.map((item) => {
-              const active = pathname === item.href || pathname.startsWith(`${item.href}/`)
+          <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-0">
+            <Link
+              href="/search"
+              aria-label="Search"
+              className="inline-flex items-center justify-center rounded-full bg-white/[0.05] p-2.5 text-[var(--sd-muted)] transition hover:bg-white/[0.12] hover:text-white md:hidden"
+            >
+              <Search className="h-4 w-4" />
+            </Link>
+
+            {session ? (
+              <>
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="hidden items-center gap-2 px-2 text-sm font-semibold text-[var(--sd-muted)] transition hover:text-white sm:inline-flex"
+                >
+                  Log out
+                </button>
+                <Link
+                  href="/create"
+                  className="hidden items-center gap-2 rounded-full bg-[var(--sd-accent)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--sd-accent-strong)] sm:inline-flex"
+                >
+                  <PlusCircle className="h-4 w-4" />
+                  Get Started
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="hidden items-center gap-2 px-2 text-sm font-semibold text-[var(--sd-muted)] transition hover:text-white sm:inline-flex"
+                >
+                  <LogIn className="h-4 w-4" />
+                  Sign In
+                </Link>
+                <Link
+                  href="/signup"
+                  className="hidden items-center gap-2 rounded-full bg-[var(--sd-accent)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--sd-accent-strong)] hover:shadow-[0_10px_24px_var(--sd-accent-ring)] sm:inline-flex"
+                >
+                  <PlusCircle className="h-4 w-4" />
+                  Get Started
+                </Link>
+              </>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setOpen((value) => !value)}
+              className="inline-flex items-center justify-center rounded-full bg-white/[0.05] p-2.5 text-white transition hover:bg-white/[0.12] lg:hidden"
+              aria-label="Toggle navigation"
+              aria-expanded={open}
+            >
+              {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* tier 3 — promo strip */}
+      <div className="hidden bg-[var(--sd-promo)] sm:block">
+        <p className="mx-auto w-full max-w-[var(--editable-container)] px-4 py-2.5 text-center text-[13px] font-medium text-white/80 sm:px-6 lg:px-8">
+          Free to list your business today —{' '}
+          <Link href="/signup" className="font-semibold text-[var(--sd-accent)] transition hover:text-white">
+            Get started →
+          </Link>
+        </p>
+      </div>
+
+      {/* tier 4 — section tabs */}
+      <div className="border-b border-[var(--sd-line)] bg-[var(--sd-tabs)]">
+        <div className="mx-auto flex w-full max-w-[var(--editable-container)] items-center gap-1 px-4 sm:px-6 lg:px-8">
+          <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {[{ label: 'All', href: '/' }, ...taskTabs].map((tab) => {
+              const active = isActive(tab.href)
               return (
                 <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`rounded-full px-4 py-2 text-sm font-black transition ${
+                  key={tab.href}
+                  href={tab.href}
+                  className={`shrink-0 border-b-2 px-4 py-3 text-[13px] font-semibold transition ${
                     active
-                      ? 'bg-black text-white'
-                      : 'text-black/80 hover:bg-black/5 hover:text-black'
+                      ? 'border-[var(--sd-accent)] text-[var(--sd-accent)]'
+                      : 'border-transparent text-[var(--sd-muted)] hover:text-[var(--sd-text)]'
                   }`}
                 >
-                  {item.label}
+                  {tab.label}
                 </Link>
               )
             })}
-          </div>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-2">
-          <Link href="/login" className="hidden items-center gap-2 rounded-full border border-black/80 bg-[var(--slot4-accent-fill)] px-5 py-3 text-sm font-black text-black shadow-[0_10px_28px_rgba(17,17,17,0.12)] transition hover:-translate-y-0.5 sm:inline-flex">
-            Sign in
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-          <Link href="/signup" className="hidden items-center gap-2 rounded-full border border-black/10 bg-white/80 px-5 py-3 text-sm font-black text-black shadow-[0_10px_28px_rgba(17,17,17,0.12)] transition hover:-translate-y-0.5 sm:inline-flex">
-            Sign up
-          </Link>
-          {session ? (
-            <button type="button" onClick={logout} className="hidden rounded-full border border-black/10 bg-white/80 px-4 py-3 text-sm font-black transition hover:-translate-y-0.5 sm:inline-flex">
-              Log out
-            </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => setOpen((value) => !value)}
-            className="inline-flex items-center justify-center rounded-full border border-black/10 bg-white/80 p-3 shadow-sm transition hover:-translate-y-0.5 lg:hidden"
-            aria-label="Toggle menu"
+          </nav>
+          <Link
+            href={browseAllHref}
+            className="my-2 shrink-0 rounded-full bg-[var(--sd-accent)] px-5 py-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-white transition hover:bg-[var(--sd-accent-strong)]"
           >
-            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
+            Browse all
+          </Link>
         </div>
-      </nav>
+      </div>
 
+      {/* mobile sheet */}
       {open ? (
-        <div className="border-t border-black/10 bg-[var(--editable-nav-bg)] px-4 pb-5 pt-2 shadow-[0_22px_70px_rgba(17,17,17,0.14)] lg:hidden">
-          <form action="/search" className="mb-4 rounded-[1.4rem] border border-black/10 bg-white p-3">
-            <label className="flex items-center gap-3">
-              <Search className="h-4 w-4 opacity-55" />
-              <input name="q" type="search" placeholder="Search work, profiles, or topics" className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:text-current/40" />
-            </label>
+        <div className="border-b border-[var(--sd-line)] bg-[var(--sd-nav)] px-4 pb-5 pt-4 lg:hidden">
+          <form action="/search" className="flex items-center gap-2 rounded-full bg-[var(--sd-surface)] px-4 py-2.5 ring-1 ring-white/[0.07]">
+            <Search className="h-4 w-4 shrink-0 text-[var(--sd-faint)]" />
+            <input
+              name="q"
+              type="search"
+              placeholder="Search the directory"
+              className="min-w-0 flex-1 bg-transparent text-sm font-medium text-[var(--sd-text)] outline-none"
+            />
           </form>
-          <div className="grid gap-2">
-            {navItems.map((item) => (
-              <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className="flex items-center justify-between rounded-[1.35rem] border border-black/10 bg-white/80 px-4 py-3 text-sm font-black text-black/85">
-                {item.label} <Sparkles className="h-4 w-4 opacity-50" />
+
+          <div className="mt-4 grid gap-1.5">
+            {menuItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                className={`rounded-[var(--sd-radius)] px-4 py-3 text-sm font-semibold transition ${
+                  isActive(item.href) ? 'bg-[var(--sd-accent)] text-white' : 'bg-white/[0.04] text-[var(--sd-muted)] hover:bg-white/[0.1]'
+                }`}
+              >
+                {item.label}
               </Link>
             ))}
-            <Link href="/contact" onClick={() => setOpen(false)} className="flex items-center justify-between rounded-[1.35rem] border border-black/10 bg-[var(--slot4-accent-soft)] px-4 py-3 text-sm font-black">
-              Contact <ArrowRight className="h-4 w-4" />
-            </Link>
           </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            {session ? (
+              <>
+                <Link href="/create" onClick={() => setOpen(false)} className="rounded-full bg-[var(--sd-accent)] px-4 py-3 text-center text-sm font-semibold text-white">
+                  Get Started
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    logout()
+                    setOpen(false)
+                  }}
+                  className="rounded-full border border-[var(--sd-line-strong)] px-4 py-3 text-sm font-semibold text-[var(--sd-muted)]"
+                >
+                  Log out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" onClick={() => setOpen(false)} className="rounded-full border border-[var(--sd-line-strong)] px-4 py-3 text-center text-sm font-semibold text-[var(--sd-muted)]">
+                  Sign In
+                </Link>
+                <Link href="/signup" onClick={() => setOpen(false)} className="rounded-full bg-[var(--sd-accent)] px-4 py-3 text-center text-sm font-semibold text-white">
+                  Get Started
+                </Link>
+              </>
+            )}
+          </div>
+
+          <p className="mt-4 text-center text-xs text-[var(--sd-faint)]">{globalContent.nav.tagline}</p>
         </div>
       ) : null}
     </header>

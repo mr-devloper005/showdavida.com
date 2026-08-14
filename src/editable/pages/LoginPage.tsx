@@ -1,62 +1,69 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { ArrowRight, BadgeCheck, Compass, ShieldCheck } from 'lucide-react'
 import { buildPageMetadata } from '@/lib/seo'
 import { EditableSiteShell } from '@/editable/shell/EditableSiteShell'
 import { EditableLocalLoginForm } from '@/editable/components/EditableLocalAuthForms'
 import { pagesContent } from '@/editable/content/pages.content'
+import { editableDesignContract as dc } from '@/editable/layouts/design-contract'
 
 export async function generateMetadata(): Promise<Metadata> {
   return buildPageMetadata({ path: '/login', title: 'Login', description: pagesContent.auth.login.metadataDescription })
 }
 
+const perks = [
+  { icon: Compass, label: 'Keep browsing', note: 'Pick up where you left off.' },
+  { icon: BadgeCheck, label: 'Manage listings', note: 'Edit and track what you publish.' },
+  { icon: ShieldCheck, label: 'Stays local', note: 'Your session lives in this browser.' },
+]
+
 export default function LoginPage() {
+  const copy = pagesContent.auth.login
+
   return (
     <EditableSiteShell>
-      <main className="bg-[radial-gradient(circle_at_top_left,rgba(205,220,46,0.18),transparent_30%),linear-gradient(180deg,var(--editable-page-bg,#f2efe6)_0%,#f5f1e7_100%)] text-[var(--editable-page-text,#111)]">
-        <section className="mx-auto grid min-h-[calc(100vh-12rem)] max-w-[var(--editable-container)] gap-8 px-4 py-12 sm:px-6 lg:grid-cols-[1.08fr_0.92fr] lg:items-center lg:px-8 lg:py-16">
-          <div className="relative overflow-hidden rounded-[2.2rem] border border-black/10 bg-[linear-gradient(180deg,#ffffff_0%,#f7f3ea_100%)] p-6 shadow-[0_30px_110px_rgba(17,17,17,0.08)] sm:p-8 lg:p-10">
-            <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-[var(--slot4-accent-soft)] blur-3xl" />
-            <div className="relative max-w-2xl">
-              <p className="text-[11px] font-black uppercase tracking-[0.3em] text-black/55">{pagesContent.auth.login.badge}</p>
-              <h1 className="mt-5 max-w-xl text-5xl font-black leading-[0.9] tracking-[-0.09em] text-black sm:text-6xl lg:text-[4.9rem]">
-                {pagesContent.auth.login.title}
-              </h1>
-              <p className="mt-6 max-w-lg text-sm leading-8 text-black/70">{pagesContent.auth.login.description}</p>
-            </div>
+      <main className="bg-[var(--sd-bg)] text-[var(--sd-text)]">
+        <section className="mx-auto w-full max-w-[var(--editable-container)] px-4 py-10 sm:px-6 lg:px-8 lg:py-16">
+          <div className="grid overflow-hidden rounded-[var(--sd-radius-lg)] border border-[var(--sd-line)] lg:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)]">
+            {/* copy panel */}
+            <div className="sd-hatch relative bg-[linear-gradient(150deg,var(--sd-hero)_0%,var(--sd-hero-2)_100%)] p-8 sm:p-10 lg:p-12">
+              <span className={`${dc.type.eyebrow} text-[var(--sd-accent)]`}>{copy.badge}</span>
+              <h1 className="mt-5 text-2xl font-bold leading-[1.14] tracking-[-0.03em] text-white sm:text-3xl">{copy.title}</h1>
+              <p className="mt-4 max-w-md text-[15px] leading-[1.85] text-white/60">{copy.description}</p>
 
-            <div className="relative mt-10 grid gap-4 sm:grid-cols-3">
-              {[
-                'Resume where you left off.',
-                'Keep submissions and browsing in one place.',
-                'A fast path back into your workspace.',
-              ].map((item) => (
-                <div
-                  key={item}
-                  className="rounded-[1.5rem] border border-black/10 bg-white/85 p-4 text-sm font-bold leading-6 text-black shadow-[0_12px_30px_rgba(17,17,17,0.05)]"
-                >
-                  {item}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="relative">
-            <div className="absolute -left-6 -top-6 h-24 w-24 rounded-full bg-[var(--slot4-accent-fill)]/25 blur-2xl" />
-            <div className="rounded-[2.2rem] border border-black/10 bg-white p-6 shadow-[0_28px_90px_rgba(17,17,17,0.12)] sm:p-8 lg:p-10">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-[11px] font-black uppercase tracking-[0.3em] text-black/45">Account access</p>
-                  <h2 className="mt-3 text-3xl font-black tracking-[-0.06em] text-black">{pagesContent.auth.login.formTitle}</h2>
-                </div>
-                <div className="hidden rounded-full border border-black/10 bg-[var(--slot4-accent-soft)] px-4 py-2 text-xs font-black uppercase tracking-[0.24em] text-black sm:block">
-                  Secure sign in
-                </div>
+              <div className="mt-9 grid gap-3">
+                {perks.map((perk) => (
+                  <div key={perk.label} className="flex items-start gap-3 rounded-[var(--sd-radius-sm)] border border-white/10 bg-white/[0.05] p-4">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--sd-accent-soft)] text-[var(--sd-accent)]">
+                      <perk.icon className="h-4 w-4" />
+                    </span>
+                    <span>
+                      <span className="block text-sm font-semibold text-white">{perk.label}</span>
+                      <span className="mt-0.5 block text-[13px] text-white/45">{perk.note}</span>
+                    </span>
+                  </div>
+                ))}
               </div>
+
+              <Link href="/" className="mt-9 inline-flex items-center gap-2 text-sm font-medium text-white/50 transition hover:gap-3 hover:text-white">
+                Back to home <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+
+            {/* form panel */}
+            <div className="bg-[var(--sd-surface)] p-8 sm:p-10 lg:p-12">
+              <p className={`${dc.type.eyebrow} text-[var(--sd-accent)]`}>{copy.formTitle}</p>
+              <h2 className="mt-3 text-xl font-bold tracking-[-0.02em] sm:text-2xl">Sign in to your account</h2>
+              <p className="mt-2 text-sm leading-[1.75] text-[var(--sd-muted)]">
+                Enter the email and password you used when creating your account.
+              </p>
+
               <EditableLocalLoginForm />
-              <p className="mt-5 text-sm text-black/65">
+
+              <p className="mt-6 text-sm leading-[1.75] text-[var(--sd-muted)]">
                 New here?{' '}
-                <Link href="/signup" className="font-black text-black underline-offset-4 hover:underline">
-                  {pagesContent.auth.login.createCta}
+                <Link href="/signup" className="font-semibold text-[var(--sd-accent)] sd-underline">
+                  {copy.createCta}
                 </Link>
               </p>
             </div>

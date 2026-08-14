@@ -1,93 +1,87 @@
 'use client'
 
-import { Building2, FileText, Image as ImageIcon, Mail, MapPin, Phone, Sparkles, Bookmark } from 'lucide-react'
+import Link from 'next/link'
+import { Clock3, Images, Mail, MessageSquare, Sparkles } from 'lucide-react'
 import { pagesContent } from '@/editable/content/pages.content'
-import { getFactoryState } from '@/design/factory/get-factory-state'
-import { getProductKind } from '@/design/factory/get-product-kind'
 import { EditableContactLeadForm } from '@/editable/components/EditableContactLeadForm'
 import { EditableSiteShell } from '@/editable/shell/EditableSiteShell'
+import { editableDesignContract as dc } from '@/editable/layouts/design-contract'
 
-function getTone(kind: ReturnType<typeof getProductKind>) {
-  if (kind === 'directory') {
-    return {
-      panel: 'border border-black/10 bg-white/80',
-      soft: 'border border-black/10 bg-white',
-      muted: 'text-black/65',
-    }
-  }
-  if (kind === 'editorial') {
-    return {
-      panel: 'border border-black/10 bg-white/80',
-      soft: 'border border-black/10 bg-black text-white',
-      muted: 'text-black/65',
-    }
-  }
-  if (kind === 'visual') {
-    return {
-      panel: 'border border-white/10 bg-black text-white',
-      soft: 'border border-white/10 bg-white/8 text-white',
-      muted: 'text-white/70',
-    }
-  }
-  return {
-    panel: 'border border-black/10 bg-white/80',
-    soft: 'border border-black/10 bg-white',
-    muted: 'text-black/65',
-  }
-}
+const lanes = [
+  {
+    icon: Images,
+    title: 'Listings and submissions',
+    body: 'Share a business listing, a gallery, or a set of images you would like considered for the directory.',
+  },
+  {
+    icon: MessageSquare,
+    title: 'Corrections and edits',
+    body: 'Spotted something out of date on a listing? Send the details and we will get it updated.',
+  },
+  {
+    icon: Sparkles,
+    title: 'Everything else',
+    body: 'Partnerships, feedback on the site, or a question that does not fit anywhere above.',
+  },
+]
 
 export default function ContactPage() {
-  const { recipe } = getFactoryState()
-  const productKind = getProductKind(recipe)
-  const tone = getTone(productKind)
-
-  const lanes =
-    productKind === 'directory'
-      ? [
-          { icon: Building2, title: 'Business onboarding', body: 'Add listings, verify operational details, and bring your business surface live quickly.' },
-          { icon: Phone, title: 'Partnership support', body: 'Talk through bulk publishing, local growth, and operational setup questions.' },
-          { icon: MapPin, title: 'Coverage requests', body: 'Need a new geography or category lane? We can shape the directory around it.' },
-        ]
-      : productKind === 'editorial'
-        ? [
-            { icon: FileText, title: 'Editorial submissions', body: 'Pitch essays, columns, and long-form ideas that fit the publication.' },
-            { icon: Mail, title: 'Newsletter partnerships', body: 'Coordinate sponsorships, collaborations, and issue-level campaigns.' },
-            { icon: Sparkles, title: 'Contributor support', body: 'Get help with voice, formatting, and publication workflow questions.' },
-          ]
-        : productKind === 'visual'
-          ? [
-              { icon: ImageIcon, title: 'Creator collaborations', body: 'Discuss gallery launches, creator features, and visual campaigns.' },
-              { icon: Sparkles, title: 'Licensing and use', body: 'Reach out about usage rights, commercial requests, and visual partnerships.' },
-              { icon: Mail, title: 'Media kits', body: 'Request creator decks, editorial support, or visual feature placement.' },
-            ]
-          : [
-              { icon: Bookmark, title: 'Collection submissions', body: 'Suggest resources, boards, and links that deserve a place in the library.' },
-              { icon: Mail, title: 'Resource partnerships', body: 'Coordinate curation projects, reference pages, and link programs.' },
-              { icon: Sparkles, title: 'Curator support', body: 'Need help organizing shelves, collections, or profile-connected boards?' },
-            ]
+  const copy = pagesContent.contact
 
   return (
     <EditableSiteShell>
-      <main className="mx-auto max-w-[var(--editable-container)] px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
-        <section className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.28em] opacity-70">{pagesContent.contact.eyebrow}</p>
-            <h1 className="mt-4 max-w-xl text-5xl font-black leading-[0.92] tracking-[-0.08em] sm:text-6xl">{pagesContent.contact.title}</h1>
-            <p className={`mt-5 max-w-2xl text-sm leading-8 ${tone.muted}`}>{pagesContent.contact.description}</p>
-            <div className="mt-8 space-y-4">
-              {lanes.map((lane) => (
-                <div key={lane.title} className={`rounded-[1.6rem] p-5 shadow-[0_18px_50px_rgba(17,17,17,0.06)] ${tone.soft}`}>
-                  <lane.icon className="h-5 w-5" />
-                  <h2 className="mt-3 text-xl font-black tracking-[-0.05em]">{lane.title}</h2>
-                  <p className={`mt-2 text-sm leading-7 ${tone.muted}`}>{lane.body}</p>
-                </div>
-              ))}
+      <main className="bg-[var(--sd-bg)] text-[var(--sd-text)]">
+        <section className="sd-hatch border-b border-[var(--sd-line)] bg-[linear-gradient(150deg,var(--sd-hero)_0%,var(--sd-hero-2)_100%)]">
+          <div className="mx-auto w-full max-w-[var(--editable-container)] px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+            <div className="sd-rise max-w-2xl">
+              <p className={`${dc.type.eyebrow} inline-flex items-center gap-2 text-[var(--sd-accent)]`}>
+                <Mail className="h-3.5 w-3.5" />
+                {copy.eyebrow}
+              </p>
+              <h1 className="mt-4 text-[1.9rem] font-bold leading-[1.12] tracking-[-0.03em] text-white sm:text-4xl lg:text-[2.8rem]">
+                {copy.title}
+              </h1>
+              <p className="mt-4 text-[15px] leading-[1.85] text-white/60">{copy.description}</p>
             </div>
           </div>
+        </section>
 
-          <div className={`rounded-[2rem] p-7 shadow-[0_24px_80px_rgba(17,17,17,0.08)] ${tone.panel}`}>
-            <h2 className="text-2xl font-black tracking-[-0.05em]">{pagesContent.contact.formTitle}</h2>
-            <EditableContactLeadForm />
+        <section className="mx-auto w-full max-w-[var(--editable-container)] px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+          <div className="grid gap-7 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:items-start">
+            <div className="grid content-start gap-4 sd-stagger">
+              {lanes.map((lane) => (
+                <div
+                  key={lane.title}
+                  className="rounded-[var(--sd-radius)] border border-[var(--sd-line)] bg-[var(--sd-surface)] p-6 transition duration-300 hover:-translate-y-1 hover:border-[var(--sd-accent-ring)]"
+                >
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--sd-accent-soft)] text-[var(--sd-accent)]">
+                    <lane.icon className="h-4 w-4" />
+                  </span>
+                  <h2 className="mt-4 text-lg font-bold tracking-[-0.015em]">{lane.title}</h2>
+                  <p className="mt-2 text-sm leading-[1.75] text-[var(--sd-muted)]">{lane.body}</p>
+                </div>
+              ))}
+
+              <div className="rounded-[var(--sd-radius)] bg-[var(--sd-promo)] p-6">
+                <p className={`${dc.type.eyebrow} text-[var(--sd-accent)]`}>Before you write</p>
+                <p className="mt-3 flex items-start gap-2.5 text-sm leading-[1.75] text-white/60">
+                  <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-[var(--sd-accent)]" />
+                  Messages are read in the order they arrive. Adding a link or the name of the listing you mean makes it much
+                  faster to sort.
+                </p>
+                <Link href="/search" className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-white/60 transition hover:gap-3 hover:text-white">
+                  Search the site first
+                </Link>
+              </div>
+            </div>
+
+            <div className="min-w-0">
+              <div className="mb-4">
+                <p className={`${dc.type.eyebrow} text-[var(--sd-accent)]`}>{copy.formTitle}</p>
+                <h2 className="mt-2 text-xl font-bold tracking-[-0.02em] sm:text-2xl">Tell us what you need</h2>
+              </div>
+              <EditableContactLeadForm />
+            </div>
           </div>
         </section>
       </main>
