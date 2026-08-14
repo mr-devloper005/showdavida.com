@@ -1,55 +1,74 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { ArrowRight, Images, PenLine, Rocket } from 'lucide-react'
 import { buildPageMetadata } from '@/lib/seo'
 import { EditableSiteShell } from '@/editable/shell/EditableSiteShell'
 import { EditableLocalSignupForm } from '@/editable/components/EditableLocalAuthForms'
 import { pagesContent } from '@/editable/content/pages.content'
+import { editableDesignContract as dc } from '@/editable/layouts/design-contract'
 
 export async function generateMetadata(): Promise<Metadata> {
   return buildPageMetadata({ path: '/signup', title: 'Sign up', description: pagesContent.auth.signup.metadataDescription })
 }
 
+const steps = [
+  { icon: PenLine, label: 'Create your account', note: 'Name, email and a password — that is all.' },
+  { icon: Images, label: 'Add your first listing', note: 'Upload images and write a short description.' },
+  { icon: Rocket, label: 'Appear in the directory', note: 'Your listing joins the browsing surface.' },
+]
+
 export default function SignupPage() {
+  const copy = pagesContent.auth.signup
+
   return (
     <EditableSiteShell>
-      <main className="bg-[radial-gradient(circle_at_top_right,rgba(17,17,17,0.08),transparent_28%),linear-gradient(180deg,var(--editable-page-bg,#f2efe6)_0%,#efe9dd_100%)] text-[var(--editable-page-text,#111)]">
-        <section className="mx-auto grid min-h-[calc(100vh-12rem)] max-w-[var(--editable-container)] gap-8 px-4 py-12 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:px-8 lg:py-16">
-          <div className="relative overflow-hidden rounded-[2.2rem] border border-black/10 bg-black p-6 text-white shadow-[0_30px_110px_rgba(17,17,17,0.18)] sm:p-8 lg:p-10">
-            <div className="absolute left-0 top-0 h-44 w-44 rounded-full bg-[var(--slot4-accent-fill)]/20 blur-3xl" />
-            <div className="relative">
-              <p className="text-[11px] font-black uppercase tracking-[0.3em] text-white/55">{pagesContent.auth.signup.badge}</p>
-              <h1 className="mt-5 max-w-xl text-5xl font-black leading-[0.9] tracking-[-0.09em] text-white sm:text-6xl lg:text-[4.7rem]">
-                {pagesContent.auth.signup.title}
-              </h1>
-              <p className="mt-6 max-w-lg text-sm leading-8 text-white/70">{pagesContent.auth.signup.description}</p>
-            </div>
+      <main className="bg-[var(--sd-bg)] text-[var(--sd-text)]">
+        <section className="mx-auto w-full max-w-[var(--editable-container)] px-4 py-10 sm:px-6 lg:px-8 lg:py-16">
+          <div className="grid overflow-hidden rounded-[var(--sd-radius-lg)] border border-[var(--sd-line)] lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1fr)]">
+            {/* form panel — second on mobile, first on desktop */}
+            <div className="order-2 bg-[var(--sd-surface)] p-8 sm:p-10 lg:order-1 lg:p-12">
+              <p className={`${dc.type.eyebrow} text-[var(--sd-accent)]`}>{copy.formTitle}</p>
+              <h2 className="mt-3 text-xl font-bold tracking-[-0.02em] sm:text-2xl">Set up your account</h2>
+              <p className="mt-2 text-sm leading-[1.75] text-[var(--sd-muted)]">
+                It takes about thirty seconds and unlocks the publishing workspace.
+              </p>
 
-            <div className="relative mt-10 grid gap-4 sm:grid-cols-2">
-              {[
-                'Set up your profile in a few steps.',
-                'Save your details for future publishing.',
-                'Join the workspace without breaking your flow.',
-                'Switch between sign in and sign up easily.',
-              ].map((item) => (
-                <div key={item} className="rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-4 text-sm font-bold leading-6 text-white/90">
-                  {item}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="relative">
-            <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-[var(--slot4-accent-fill)]/25 blur-2xl" />
-            <div className="rounded-[2.2rem] border border-black/10 bg-white/[0.92] p-6 shadow-[0_28px_90px_rgba(17,17,17,0.12)] sm:p-8 lg:p-10">
-              <p className="text-[11px] font-black uppercase tracking-[0.3em] text-black/45">Get started</p>
-              <h2 className="mt-3 text-3xl font-black tracking-[-0.06em] text-black">{pagesContent.auth.signup.formTitle}</h2>
               <EditableLocalSignupForm />
-              <p className="mt-5 text-sm text-black/65">
+
+              <p className="mt-6 text-sm leading-[1.75] text-[var(--sd-muted)]">
                 Already have an account?{' '}
-                <Link href="/login" className="font-black text-black underline-offset-4 hover:underline">
-                  {pagesContent.auth.signup.loginCta}
+                <Link href="/login" className="font-semibold text-[var(--sd-accent)] sd-underline">
+                  {copy.loginCta}
                 </Link>
               </p>
+            </div>
+
+            {/* copy panel */}
+            <div className="sd-hatch relative order-1 bg-[linear-gradient(150deg,var(--sd-hero)_0%,var(--sd-hero-2)_100%)] p-8 sm:p-10 lg:order-2 lg:p-12">
+              <span className={`${dc.type.eyebrow} text-[var(--sd-accent)]`}>{copy.badge}</span>
+              <h1 className="mt-5 text-2xl font-bold leading-[1.14] tracking-[-0.03em] text-white sm:text-3xl">{copy.title}</h1>
+              <p className="mt-4 max-w-md text-[15px] leading-[1.85] text-white/60">{copy.description}</p>
+
+              <ol className="mt-9 grid gap-3">
+                {steps.map((step, index) => (
+                  <li key={step.label} className="flex items-start gap-3 rounded-[var(--sd-radius-sm)] border border-white/10 bg-white/[0.05] p-4">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--sd-accent)] text-xs font-bold text-white">
+                      {index + 1}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="flex items-center gap-2 text-sm font-semibold text-white">
+                        <step.icon className="h-3.5 w-3.5 text-[var(--sd-accent)]" />
+                        {step.label}
+                      </span>
+                      <span className="mt-0.5 block text-[13px] text-white/45">{step.note}</span>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+
+              <Link href="/" className="mt-9 inline-flex items-center gap-2 text-sm font-medium text-white/50 transition hover:gap-3 hover:text-white">
+                Back to home <ArrowRight className="h-4 w-4" />
+              </Link>
             </div>
           </div>
         </section>
